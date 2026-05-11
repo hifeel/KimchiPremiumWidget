@@ -1,0 +1,25 @@
+# Built APKs
+*.apk
+*.aab
+
+# Gradle
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+
+# Android SDK / IDE
+local.properties
+.idea/
+*.iml
+.cxx/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Keystores (never commit signing keys)
+*.jks
+*.keystore
+
+# Logs
+*.log

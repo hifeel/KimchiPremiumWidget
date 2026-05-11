@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">김치 프리미엄 위젯</string>
+    <string name="widget_description">비트코인·USDT 김치 프리미엄을 실시간으로 표시합니다</string>
+</resources>
