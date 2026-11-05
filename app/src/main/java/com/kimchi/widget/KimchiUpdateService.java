@@ -1,6 +1,5 @@
 package com.kimchi.widget;
 
-import android.app.PendingIntent;
 import android.app.Service;
 import android.appwidget.AppWidgetManager;
 import android.content.ComponentName;
@@ -277,11 +276,7 @@ public class KimchiUpdateService extends Service {
             views.setViewVisibility(R.id.tv_update_time, View.VISIBLE);
             views.setViewVisibility(R.id.iv_refresh_icon, View.GONE);
 
-            Intent refreshIntent = new Intent(context, KimchiWidgetProvider.class);
-            refreshIntent.setAction(KimchiWidgetProvider.ACTION_REFRESH);
-            PendingIntent pi = PendingIntent.getBroadcast(context, id, refreshIntent,
-                    PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
-            views.setOnClickPendingIntent(R.id.widget_root, pi);
+            KimchiWidgetProvider.bindClickActions(context, views, id);
 
             // 인스턴스별 캐시 저장
             SharedPreferences.Editor editor = prefs.edit();

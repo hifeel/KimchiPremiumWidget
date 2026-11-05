@@ -106,14 +106,28 @@ public class KimchiWidgetProvider extends AppWidgetProvider {
         views.setViewVisibility(R.id.tv_update_time, View.VISIBLE);
         views.setViewVisibility(R.id.iv_refresh_icon, View.GONE);
 
-        // 클릭 → 새로고침
-        Intent refreshIntent = new Intent(context, KimchiWidgetProvider.class);
-        refreshIntent.setAction(ACTION_REFRESH);
-        PendingIntent pi = PendingIntent.getBroadcast(context, appWidgetId, refreshIntent,
-                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
-        views.setOnClickPendingIntent(R.id.widget_root, pi);
+        bindClickActions(context, views, appWidgetId);
 
         appWidgetManager.updateAppWidget(appWidgetId, views);
+    }
+
+    /** 톱니바퀴와 코인 이름을 누르면 코인 설정 화면을 열고, 나머지 영역을 누르면 새로고침한다. */
+    static void bindClickActions(Context context, RemoteViews views, int appWidgetId) {
+        int flags = PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE;
+
+        Intent refreshIntent = new Intent(context, KimchiWidgetProvider.class);
+        refreshIntent.setAction(ACTION_REFRESH);
+        views.setOnClickPendingIntent(R.id.widget_root,
+                PendingIntent.getBroadcast(context, appWidgetId, refreshIntent, flags));
+
+        Intent configIntent = new Intent(context, KimchiWidgetConfigActivity.class);
+        configIntent.putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId);
+        // 다른 위젯의 설정 화면이 남아 있어도 누른 위젯의 화면이 열리도록 태스크를 새로 시작한다.
+        configIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+        PendingIntent configPendingIntent = PendingIntent.getActivity(context, appWidgetId, configIntent, flags);
+        views.setOnClickPendingIntent(R.id.iv_settings, configPendingIntent);
+        views.setOnClickPendingIntent(R.id.tv_coin1_label, configPendingIntent);
+        views.setOnClickPendingIntent(R.id.tv_coin2_label, configPendingIntent);
     }
 
     private static void renderSlotFromCache(RemoteViews views, SharedPreferences prefs, int id, int slot, String coin) {

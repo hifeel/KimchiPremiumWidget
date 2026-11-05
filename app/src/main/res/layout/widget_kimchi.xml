@@ -13,7 +13,7 @@
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:gravity="center_vertical"
-        android:layout_marginBottom="6dp">
+        android:layout_marginBottom="2dp">
 
         <TextView
             android:layout_width="wrap_content"
@@ -27,8 +27,8 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:layout_marginStart="20dp"
-            android:layout_marginEnd="20dp">
+            android:layout_marginStart="8dp"
+            android:layout_marginEnd="4dp">
 
             <TextView
                 android:id="@+id/tv_update_time"
@@ -57,7 +57,16 @@
             android:textColor="#FFB74D"
             android:textSize="13sp"
             android:textStyle="bold"
-            android:layout_marginEnd="8dp" />
+            android:layout_marginEnd="2dp" />
+
+        <ImageView
+            android:id="@+id/iv_settings"
+            android:layout_width="26dp"
+            android:layout_height="26dp"
+            android:padding="4dp"
+            android:src="@drawable/ic_settings"
+            android:contentDescription="코인 변경"
+            android:scaleType="centerInside" />
     </LinearLayout>
 
     <!-- BTC 행 -->

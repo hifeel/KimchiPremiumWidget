@@ -26,6 +26,8 @@
         <activity
             android:name=".KimchiWidgetConfigActivity"
             android:exported="true"
+            android:excludeFromRecents="true"
+            android:taskAffinity=""
             android:theme="@style/Theme.KimchiWidget">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" />
