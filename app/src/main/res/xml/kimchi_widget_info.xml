@@ -6,4 +6,6 @@
     android:initialLayout="@layout/widget_kimchi"
     android:resizeMode="horizontal|vertical"
     android:widgetCategory="home_screen"
+    android:configure="com.kimchi.widget.KimchiWidgetConfigActivity"
+    android:widgetFeatures="reconfigurable"
     android:previewImage="@drawable/ic_launcher_foreground" />

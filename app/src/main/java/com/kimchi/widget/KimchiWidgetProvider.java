@@ -3,30 +3,28 @@ package com.kimchi.widget;
 import android.app.PendingIntent;
 import android.appwidget.AppWidgetManager;
 import android.appwidget.AppWidgetProvider;
-import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.util.Log;
+import android.view.View;
 import android.widget.RemoteViews;
 
 import java.text.DecimalFormat;
-import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.Locale;
 
 public class KimchiWidgetProvider extends AppWidgetProvider {
 
     public static final String ACTION_REFRESH = "com.kimchi.widget.ACTION_REFRESH";
-    private static final String PREFS_NAME = "KimchiWidgetPrefs";
+    private static final String PREFS_NAME = KimchiUpdateService.PREFS_NAME;
     private static final String TAG = "KimchiWidget";
 
     @Override
     public void onUpdate(Context context, AppWidgetManager appWidgetManager, int[] appWidgetIds) {
+        // 캐시된 데이터로 즉시 표시
         for (int appWidgetId : appWidgetIds) {
-            updateAppWidget(context, appWidgetManager, appWidgetId);
+            renderFromCache(context, appWidgetManager, appWidgetId);
         }
-        // 즉시 데이터 갱신
+        // 네트워크 갱신
         new Thread(() -> {
             try {
                 Thread.sleep(500);
@@ -42,7 +40,6 @@ public class KimchiWidgetProvider extends AppWidgetProvider {
         super.onReceive(context, intent);
         if (ACTION_REFRESH.equals(intent.getAction())) {
             Log.d(TAG, "Refresh action received");
-            // 즉시 데이터 갱신
             new Thread(() -> {
                 try {
                     KimchiUpdateService.updatePricesDirectly(context);
@@ -53,76 +50,112 @@ public class KimchiWidgetProvider extends AppWidgetProvider {
         }
     }
 
-    private static void updateAppWidget(Context context, AppWidgetManager appWidgetManager, int appWidgetId) {
+    @Override
+    public void onDeleted(Context context, int[] appWidgetIds) {
+        // 위젯 제거 시 인스턴스별 설정/캐시 정리
+        SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        SharedPreferences.Editor editor = prefs.edit();
+        for (int id : appWidgetIds) {
+            editor.remove("coin1_" + id);
+            editor.remove("coin2_" + id);
+            for (int slot = 1; slot <= 2; slot++) {
+                String p = "slot" + slot + "_" + id + "_";
+                editor.remove(p + "coin");
+                editor.remove(p + "premium");
+                editor.remove(p + "diff");
+                editor.remove(p + "upbit");
+                editor.remove(p + "ref");
+            }
+        }
+        editor.apply();
+        Log.d(TAG, "Cleaned up prefs for " + appWidgetIds.length + " widget(s)");
+    }
+
+    /**
+     * 캐시된 값으로 위젯 렌더링. 시간 옆에 마지막 성공 후 경과 시간(⚠️)이 자동 표시됨.
+     * KimchiUpdateService.showErrorState에서도 호출 (공용).
+     */
+    public static void renderFromCache(Context context, AppWidgetManager appWidgetManager, int appWidgetId) {
         RemoteViews views = new RemoteViews(context.getPackageName(), R.layout.widget_kimchi);
-        
-        // 캐시된 데이터가 있으면 먼저 표시
-        loadAndDisplayCachedData(context, views);
-        
-        // 위젯 전체를 클릭 가능하게 설정 (새로고침 기능)
+
+        SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        String coin1 = prefs.getString("coin1_" + appWidgetId, KimchiUpdateService.DEFAULT_COIN1);
+        String coin2 = prefs.getString("coin2_" + appWidgetId, KimchiUpdateService.DEFAULT_COIN2);
+        float usdKrw = prefs.getFloat(KimchiUpdateService.KEY_USD_KRW, Float.NaN);
+
+        views.setTextViewText(R.id.tv_coin1_label, coin1);
+        views.setTextViewText(R.id.tv_coin2_label, coin2);
+
+        if (!Float.isNaN(usdKrw)) {
+            DecimalFormat dfKrw = new DecimalFormat("#,##0");
+            views.setTextViewText(R.id.tv_exchange_rate, "환율: ₩" + dfKrw.format(usdKrw));
+        }
+
+        renderSlotFromCache(views, prefs, appWidgetId, 1, coin1);
+        renderSlotFromCache(views, prefs, appWidgetId, 2, coin2);
+
+        // 시간 + 경과/⚠️ 표시
+        views.setTextViewText(R.id.tv_update_time, KimchiUpdateService.formatUpdateTime(prefs));
+        views.setViewVisibility(R.id.tv_update_time, View.VISIBLE);
+        views.setViewVisibility(R.id.iv_refresh_icon, View.GONE);
+
+        // 클릭 → 새로고침
         Intent refreshIntent = new Intent(context, KimchiWidgetProvider.class);
         refreshIntent.setAction(ACTION_REFRESH);
-        PendingIntent refreshPendingIntent = PendingIntent.getBroadcast(
-                context, appWidgetId, refreshIntent,
+        PendingIntent pi = PendingIntent.getBroadcast(context, appWidgetId, refreshIntent,
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
-        
-        // 루트 레이아웃에 클릭 리스너 설정
-        views.setOnClickPendingIntent(R.id.widget_root, refreshPendingIntent);
-        
+        views.setOnClickPendingIntent(R.id.widget_root, pi);
+
         appWidgetManager.updateAppWidget(appWidgetId, views);
     }
 
-    private static void loadAndDisplayCachedData(Context context, RemoteViews views) {
-        try {
-            SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
-            
-            float btcPremium = prefs.getFloat("btc_premium", Float.NaN);
-            float upbitBtc = prefs.getFloat("upbit_btc", Float.NaN);
-            float binanceBtc = prefs.getFloat("binance_btc", Float.NaN);
-            float usdtPremium = prefs.getFloat("usdt_premium", Float.NaN);
-            float upbitUsdt = prefs.getFloat("upbit_usdt", Float.NaN);
-            float usdKrw = prefs.getFloat("usd_krw", Float.NaN);
-            
-            if (!Float.isNaN(btcPremium) && !Float.isNaN(upbitBtc) && !Float.isNaN(binanceBtc) &&
-                !Float.isNaN(usdtPremium) && !Float.isNaN(upbitUsdt) && !Float.isNaN(usdKrw)) {
-                
-                DecimalFormat df2 = new DecimalFormat("+#,##0.00;-#,##0.00");
-                DecimalFormat dfKrw = new DecimalFormat("#,##0");
-                DecimalFormat dfUsd = new DecimalFormat("#,##0.00");
-                
-                // 환율
-                views.setTextViewText(R.id.tv_exchange_rate, "환율: ₩" + dfKrw.format(usdKrw));
-                
-                // BTC
-                views.setTextViewText(R.id.tv_btc_premium, df2.format(btcPremium) + "%");
-                views.setTextColor(R.id.tv_btc_premium, getPremiumColor(btcPremium));
-                
-                double btcDiff = upbitBtc - (binanceBtc * usdKrw);
-                views.setTextViewText(R.id.tv_btc_diff, "₩" + dfKrw.format(btcDiff));
-                
-                views.setTextViewText(R.id.tv_btc_krw, "₩" + dfKrw.format(upbitBtc));
-                views.setTextViewText(R.id.tv_btc_usd, "$" + dfUsd.format(binanceBtc));
-                
-                // USDT
-                views.setTextViewText(R.id.tv_usdt_premium, df2.format(usdtPremium) + "%");
-                views.setTextColor(R.id.tv_usdt_premium, getPremiumColor(usdtPremium));
-                
-                double usdtDiff = upbitUsdt - usdKrw;
-                views.setTextViewText(R.id.tv_usdt_diff, "₩" + String.format(Locale.KOREA, "%.0f", usdtDiff));
-                
-                views.setTextViewText(R.id.tv_usdt_krw, "₩" + dfKrw.format(upbitUsdt));
-                views.setTextViewText(R.id.tv_usdt_usd, "₩" + dfKrw.format(usdKrw));
-                
-                // 시간
-                String time = new SimpleDateFormat("HH:mm", Locale.KOREA).format(new Date());
-                views.setTextViewText(R.id.tv_update_time, time);
-                
-                Log.d(TAG, "Cached data displayed");
-            } else {
-                Log.d(TAG, "No cached data available");
-            }
-        } catch (Exception e) {
-            Log.e(TAG, "Error loading cached data", e);
+    private static void renderSlotFromCache(RemoteViews views, SharedPreferences prefs, int id, int slot, String coin) {
+        DecimalFormat df2 = new DecimalFormat("+#,##0.00;-#,##0.00");
+        DecimalFormat dfKrw = new DecimalFormat("#,##0");
+        DecimalFormat dfUsd = new DecimalFormat("#,##0.00");
+
+        int[] idsArr = slotIds(slot);
+
+        String p = "slot" + slot + "_" + id + "_";
+        String cachedCoin = prefs.getString(p + "coin", null);
+
+        // 캐시 없거나 코인 바뀐 경우: 로딩 플레이스홀더
+        if (cachedCoin == null || !cachedCoin.equals(coin)) {
+            views.setTextViewText(idsArr[0], "로딩중");
+            views.setTextViewText(idsArr[1], "₩ --");
+            views.setTextViewText(idsArr[2], "₩ --");
+            views.setTextViewText(idsArr[3], coin.equals("USDT") ? "₩ --" : "$ --");
+            views.setTextViewText(idsArr[4], coin.equals("USDT") ? "기준가" : "바이낸스");
+            return;
+        }
+
+        float premium = prefs.getFloat(p + "premium", Float.NaN);
+        float diff = prefs.getFloat(p + "diff", Float.NaN);
+        float upbit = prefs.getFloat(p + "upbit", Float.NaN);
+        float refVal = prefs.getFloat(p + "ref", Float.NaN);
+
+        if (Float.isNaN(premium)) {
+            views.setTextViewText(idsArr[0], "로딩중");
+            return;
+        }
+        views.setTextViewText(idsArr[0], df2.format(premium) + "%");
+        views.setTextColor(idsArr[0], getPremiumColor(premium));
+        views.setTextViewText(idsArr[1], "₩" + dfKrw.format(diff));
+        views.setTextViewText(idsArr[2], "₩" + dfKrw.format(upbit));
+        if (coin.equals("USDT")) {
+            views.setTextViewText(idsArr[3], "₩" + dfKrw.format(refVal));
+            views.setTextViewText(idsArr[4], "기준가");
+        } else {
+            views.setTextViewText(idsArr[3], "$" + dfUsd.format(refVal));
+            views.setTextViewText(idsArr[4], "바이낸스");
+        }
+    }
+
+    private static int[] slotIds(int slot) {
+        if (slot == 1) {
+            return new int[]{R.id.tv_btc_premium, R.id.tv_btc_diff, R.id.tv_btc_krw, R.id.tv_btc_usd, R.id.tv_coin1_ref_label};
+        } else {
+            return new int[]{R.id.tv_usdt_premium, R.id.tv_usdt_diff, R.id.tv_usdt_krw, R.id.tv_usdt_usd, R.id.tv_coin2_ref_label};
         }
     }
 
@@ -131,12 +164,5 @@ public class KimchiWidgetProvider extends AppWidgetProvider {
         else if (premium >= 1.0) return 0xFFFF9800;
         else if (premium >= 0.0) return 0xFF4CAF50;
         else return 0xFF2196F3;
-    }
-
-    public static void updateAllWidgets(Context context, RemoteViews views) {
-        AppWidgetManager appWidgetManager = AppWidgetManager.getInstance(context);
-        ComponentName thisWidget = new ComponentName(context, KimchiWidgetProvider.class);
-        int[] appWidgetIds = appWidgetManager.getAppWidgetIds(thisWidget);
-        appWidgetManager.updateAppWidget(appWidgetIds, views);
     }
 }

@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="24dp"
+    android:background="#1A1A2E">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="🌶 위젯 설정"
+        android:textColor="#FFFFFF"
+        android:textSize="22sp"
+        android:textStyle="bold"
+        android:layout_marginBottom="24dp" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="첫 번째 코인"
+        android:textColor="#FFB74D"
+        android:textSize="14sp"
+        android:layout_marginBottom="6dp" />
+
+    <Spinner
+        android:id="@+id/spinner_coin1"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="#2A2A4E"
+        android:padding="8dp"
+        android:layout_marginBottom="20dp" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="두 번째 코인"
+        android:textColor="#26A17B"
+        android:textSize="14sp"
+        android:layout_marginBottom="6dp" />
+
+    <Spinner
+        android:id="@+id/spinner_coin2"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="#2A2A4E"
+        android:padding="8dp"
+        android:layout_marginBottom="8dp" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="USDT 선택 시 환율 대비로 자동 계산됩니다"
+        android:textColor="#888888"
+        android:textSize="11sp"
+        android:layout_marginBottom="32dp" />
+
+    <Button
+        android:id="@+id/btn_save"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="저장"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        android:backgroundTint="#F7931A"
+        android:textColor="#FFFFFF" />
+
+</LinearLayout>
