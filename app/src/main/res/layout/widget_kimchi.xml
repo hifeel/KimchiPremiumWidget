@@ -79,6 +79,7 @@
             android:layout_marginBottom="4dp">
 
             <TextView
+                android:id="@+id/tv_coin1_label"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="BTC"
@@ -153,6 +154,7 @@
                 android:gravity="end">
 
                 <TextView
+                    android:id="@+id/tv_coin1_ref_label"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="바이낸스"
@@ -189,6 +191,7 @@
             android:layout_marginBottom="4dp">
 
             <TextView
+                android:id="@+id/tv_coin2_label"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="USDT"
@@ -263,6 +266,7 @@
                 android:gravity="end">
 
                 <TextView
+                    android:id="@+id/tv_coin2_ref_label"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="기준가"
