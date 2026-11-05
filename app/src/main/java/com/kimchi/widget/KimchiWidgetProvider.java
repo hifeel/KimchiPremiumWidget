@@ -15,8 +15,12 @@ import java.text.DecimalFormat;
 public class KimchiWidgetProvider extends AppWidgetProvider {
 
     public static final String ACTION_REFRESH = "com.kimchi.widget.ACTION_REFRESH";
+    /** 설정 저장처럼 방금 갱신했더라도 반드시 다시 조회해야 할 때 true로 넘긴다. */
+    public static final String EXTRA_FORCE_REFRESH = "com.kimchi.widget.EXTRA_FORCE_REFRESH";
     private static final String PREFS_NAME = KimchiUpdateService.PREFS_NAME;
     private static final String TAG = "KimchiWidget";
+    // 연속 터치가 차례로 실행되면 업비트 호출 한도(HTTP 429)에 걸리므로 이 간격 안의 새로고침은 건너뛴다.
+    private static final long MIN_REFRESH_INTERVAL_MS = 3000;
 
     @Override
     public void onUpdate(Context context, AppWidgetManager appWidgetManager, int[] appWidgetIds) {
@@ -25,14 +29,7 @@ public class KimchiWidgetProvider extends AppWidgetProvider {
             renderFromCache(context, appWidgetManager, appWidgetId);
         }
         // 네트워크 갱신
-        new Thread(() -> {
-            try {
-                Thread.sleep(500);
-                KimchiUpdateService.updatePricesDirectly(context);
-            } catch (Exception e) {
-                Log.e(TAG, "Error in onUpdate", e);
-            }
-        }).start();
+        startUpdate(context);
     }
 
     @Override
@@ -40,14 +37,24 @@ public class KimchiWidgetProvider extends AppWidgetProvider {
         super.onReceive(context, intent);
         if (ACTION_REFRESH.equals(intent.getAction())) {
             Log.d(TAG, "Refresh action received");
-            new Thread(() -> {
-                try {
-                    KimchiUpdateService.updatePricesDirectly(context);
-                } catch (Exception e) {
-                    Log.e(TAG, "Error in onReceive", e);
-                }
-            }).start();
+            if (!intent.getBooleanExtra(EXTRA_FORCE_REFRESH, false) && refreshedRecently(context)) {
+                Log.d(TAG, "Refresh skipped (updated just now)");
+                return;
+            }
+            startUpdate(context);
         }
+    }
+
+    private static boolean refreshedRecently(Context context) {
+        SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        long elapsedMs = System.currentTimeMillis() - prefs.getLong(KimchiUpdateService.KEY_LAST_ATTEMPT, 0);
+        return elapsedMs >= 0 && elapsedMs < MIN_REFRESH_INTERVAL_MS;
+    }
+
+    /** goAsync로 브로드캐스트를 열어 두어 갱신이 끝날 때까지 프로세스가 동결·종료되지 않게 한다. */
+    private void startUpdate(Context context) {
+        PendingResult result = goAsync();
+        KimchiUpdateService.requestUpdate(context, result::finish);
     }
 
     @Override
@@ -111,8 +118,6 @@ public class KimchiWidgetProvider extends AppWidgetProvider {
 
     private static void renderSlotFromCache(RemoteViews views, SharedPreferences prefs, int id, int slot, String coin) {
         DecimalFormat df2 = new DecimalFormat("+#,##0.00;-#,##0.00");
-        DecimalFormat dfKrw = new DecimalFormat("#,##0");
-        DecimalFormat dfUsd = new DecimalFormat("#,##0.00");
 
         int[] idsArr = slotIds(slot);
 
@@ -140,13 +145,13 @@ public class KimchiWidgetProvider extends AppWidgetProvider {
         }
         views.setTextViewText(idsArr[0], df2.format(premium) + "%");
         views.setTextColor(idsArr[0], getPremiumColor(premium));
-        views.setTextViewText(idsArr[1], "₩" + dfKrw.format(diff));
-        views.setTextViewText(idsArr[2], "₩" + dfKrw.format(upbit));
+        views.setTextViewText(idsArr[1], "₩" + PriceFormat.krw(diff));
+        views.setTextViewText(idsArr[2], "₩" + PriceFormat.krw(upbit));
         if (coin.equals("USDT")) {
-            views.setTextViewText(idsArr[3], "₩" + dfKrw.format(refVal));
+            views.setTextViewText(idsArr[3], "₩" + PriceFormat.krw(refVal));
             views.setTextViewText(idsArr[4], "기준가");
         } else {
-            views.setTextViewText(idsArr[3], "$" + dfUsd.format(refVal));
+            views.setTextViewText(idsArr[3], "$" + PriceFormat.usd(refVal));
             views.setTextViewText(idsArr[4], "바이낸스");
         }
     }

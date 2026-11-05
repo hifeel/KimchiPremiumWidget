@@ -69,6 +69,7 @@ public class KimchiWidgetConfigActivity extends AppCompatActivity {
             // 즉시 가격 갱신 트리거
             Intent refreshIntent = new Intent(this, KimchiWidgetProvider.class);
             refreshIntent.setAction(KimchiWidgetProvider.ACTION_REFRESH);
+            refreshIntent.putExtra(KimchiWidgetProvider.EXTRA_FORCE_REFRESH, true);
             sendBroadcast(refreshIntent);
 
             // 위젯 추가 완료 알림
