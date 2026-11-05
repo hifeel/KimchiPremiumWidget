@@ -10,8 +10,8 @@ android {
         applicationId "com.kimchi.widget"
         minSdk 24
         targetSdk 34
-        versionCode 20
-        versionName "20"
+        versionCode 21
+        versionName "21"
     }
 
     buildTypes {
